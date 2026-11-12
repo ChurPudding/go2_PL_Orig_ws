@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: >-
+  This repository packages Point-LIO (HKU-MARS) for the Unitree Go2 with an added
+  in-filter ZUPT. If you use it, please cite the original Point-LIO paper below.
+title: "go2_PL_Orig_ws: Point-LIO (+ in-filter ZUPT) for Unitree Go2"
+authors:
+  - name: "ChurPudding"
+repository-code: "https://github.com/ChurPudding/go2_PL_Orig_ws"
+license: GPL-2.0-only
+preferred-citation:
+  type: article
+  title: "Point-LIO: Robust High-Bandwidth Light Detection and Ranging Inertial Odometry"
+  authors:
+    - family-names: He
+      given-names: Dongjiao
+    - family-names: Xu
+      given-names: Wei
+    - family-names: Chen
+      given-names: Nan
+    - family-names: Kong
+      given-names: Fanze
+    - family-names: Yuan
+      given-names: Chongjian
+    - family-names: Zhang
+      given-names: Fu
+  journal: "Advanced Intelligent Systems"
+  year: 2023
+  start: 2200459
+  doi: "10.1002/aisy.202200459"
+references:
+  - type: software
+    title: "Point-LIO"
+    authors:
+      - name: "HKU-MARS Lab"
+    repository-code: "https://github.com/hku-mars/Point-LIO"
+    license: GPL-2.0-only
+  - type: software
+    title: "point_lio_ros2"
+    authors:
+      - name: "dfloreaa"
+    repository-code: "https://github.com/dfloreaa/point_lio_ros2"
+    commit: "a8e2d0d5090af97ead8dd4fac3d37cf3dbb33ff7"

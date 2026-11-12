@@ -1,0 +1,100 @@
+point_lio_orig — 토픽 · 필드 · 값 설명
+=========================================================================
+(기준: 원본 Point-LIO ROS2 커밋 a8e2d0d 코드 + config/go2_orig.yaml 기본값)
+
+공통 사항
+- 좌표계(월드) camera_init : Point-LIO가 켜질 때의 L1(라이다 IMU) 위치가 원점.
+  z는 중력 반대(위쪽). x·y 방향은 시작할 때 L1이 보던 방향이라 로봇 전진 방향과 다릅니다
+  (L1 장착 yaw 약 -127.9°).
+- 몸체 프레임 aft_mapped : L1(IMU) 프레임입니다. 로봇 base_link 가 아닙니다.
+  base_link 기준 L1 위치(LEVER) = [0.322, 0.005, 0.050] m.
+  그래서 자세(quaternion)에는 L1 장착 자세(roll 약 -169°)가 그대로 섞여 나옵니다.
+- 단위: 길이 m, 속도 m/s, 각속도 rad/s, 가속도 m/s², 시각 = ROS 시각(초+나노초).
+- 시각(stamp)은 로봇(L1) 시계 기준입니다. PC 시계와 수십 초 차이가 날 수 있습니다.
+
+=========================================================================
+[A] 팀원이 받는 출력 토픽 (Point-LIO 발행, /hknu 접두어)
+=========================================================================
+
+1) /hknu/aft_mapped_to_init      nav_msgs/msg/Odometry
+   빈도: 스캔마다 1회 (실측 약 15 Hz)
+   header.stamp           스캔 끝 시각(lidar_end_time)
+   header.frame_id        "camera_init"   (월드)
+   child_frame_id         "aft_mapped"    (L1 몸체)
+   pose.pose.position     x, y, z  [m]   월드에서 본 L1 원점 위치
+   pose.pose.orientation  x, y, z, w      월드에서 본 L1 자세 (단위 quaternion)
+   pose.covariance        36개 전부 0  (이 설정에서는 공분산을 채우지 않음)
+   twist.twist.linear     x, y, z  [m/s] ★ 월드(camera_init) 기준 속도입니다.
+                                         ROS 관례(child 프레임 기준)와 다릅니다.
+                                         L1 몸체 기준 속도:  v_L1 = Rᵀ · v_world
+                                         (R = orientation 을 회전행렬로 바꾼 것)
+                                         base_link 축으로:   v_B = R_LBᵀ · v_L1
+                                         (회전 중에는 레버암 때문에 ω×r 만큼 차이)
+   twist.twist.angular    x, y, z  [rad/s] L1 몸체 기준 각속도 (필터 상태 ω)
+   twist.covariance       36개 전부 0
+
+   로봇 base_link 위치로 바꾸는 식:
+       p_base = p_L1 − R · R_LB · LEVER
+       (R_LB = tools/go2_calib.py 의 base_link→L1 회전, LEVER = [0.322, 0.005, 0.050] m)
+
+2) /hknu/cloud_registered        sensor_msgs/msg/PointCloud2
+   빈도: 스캔마다 1회
+   내용: "이번 스캔" 한 장(다운샘플 0.1 m)을 월드 좌표로 바꾼 것. 누적 지도가 아닙니다.
+   header.frame_id        "camera_init"
+   height = 1, width = 점 개수
+   필드 8개 (각 float32, point_step 은 메시지 값을 그대로 쓰세요):
+     x, y, z       [m]  월드 좌표 위치                  ← 값이 들어 있음
+     intensity          L1 반사 강도                     ← 값이 들어 있음
+     normal_x, normal_y, normal_z, curvature             ← 항상 0 (쓰지 마세요)
+
+3) /hknu/Laser_map               sensor_msgs/msg/PointCloud2
+   빈도: 시작할 때 1회만 (초기 지도). 그 뒤로는 갱신되지 않습니다.
+   header.frame_id        "camera_init"
+   필드: 위와 같은 8개. x, y, z, intensity 를 쓰면 됩니다.
+         (normal·curvature 칸은 지도 내부값이라 의미가 없습니다)
+   ※ 누적 지도가 필요하면 /hknu/cloud_registered 를 받는 쪽에서 쌓아야 합니다
+     (팀원 확인 대기 중인 항목).
+
+4) /hknu/path                    nav_msgs/msg/Path      (기본 끔, --path 로 켬)
+   header.frame_id "camera_init", poses[] = 지금까지의 L1 포즈를 전부 담음.
+   줄이지 않고 계속 쌓여서 주행이 길면 메시지가 커집니다.
+
+5) /hknu/cloud_registered_body   sensor_msgs/msg/PointCloud2   (기본 발행 안 함)
+   설정 scan_bodyframe_pub_en: true 일 때만. frame_id 는 코드에 "body" 로 고정.
+
+6) /hknu/cloud_effected          발행 안 함 (원본 코드에서 publisher 만 만들고 쓰지 않음)
+
+7) /tf                           tf2_msgs/msg/TFMessage
+   camera_init → aft_mapped  (odometry 와 같은 값, 같은 빈도)
+   /hknu 접두어 없음. 다른 Point-LIO 가 같은 네트워크에서 동시에 돌면 이름이 겹칩니다.
+
+=========================================================================
+[B] 내부 토픽 (실행 스크립트가 띄우는 보조 노드)
+=========================================================================
+
+8) /hknu/l1_imu_fixed            sensor_msgs/msg/Imu    (노드 /hknu/l1_imu_fix)
+   빈도: L1 자이로마다 (실측 약 250 Hz)
+   header.stamp          L1 자이로(/utlidar/imu) 시각
+   header.frame_id       "utlidar_lidar"
+   angular_velocity      L1 자이로 그대로 [rad/s]
+   linear_acceleration   몸통 IMU(/lowstate) 가속도를 L1 프레임으로 돌리고 보정한 값 [m/s²]
+                           a_L1 = ACC_SCALE · R_LB · a_body + ω×(ω×r) + α×r
+                           (L1 내장 가속도계가 고장이라 몸통 가속도를 씀,
+                            ACC_SCALE = 9.807/9.465, r = 레버암)
+   orientation           채우지 않음 (orientation_covariance[0] = -1)
+
+9) /hknu/zupt_active             std_msgs/msg/Bool      (노드 /hknu/zvd_node, --zupt 일 때만)
+   빈도: /utlidar/robot_odom 마다 (실측 약 145 Hz)
+   data = true  : 로봇이 정지했다고 판단 (다리 속도 < 0.05 m/s 가 0.25 s 이상 지속)
+   data = false : 움직이는 중 (다리 속도 > 0.075 m/s 이면 해제)
+   Point-LIO 는 true 를 1.0 s(zupt_timeout) 넘게 못 받으면 ZUPT 를 끕니다.
+
+=========================================================================
+[C] 로봇에서 받는 입력 토픽 (참고)
+=========================================================================
+   /utlidar/cloud       sensor_msgs/PointCloud2   L1 점군 (Point-LIO 입력)
+   /utlidar/imu         sensor_msgs/Imu           L1 자이로 (브리지 입력)
+   /lowstate            unitree_go/LowState       몸통 IMU 가속도 (브리지 입력)
+   /utlidar/robot_odom  nav_msgs/Odometry         다리 오도메트리 (정지 판정 입력)
+   /sportmodestate      unitree_go/SportModeState 실행 스크립트가 계속 수신
+                                                   (수신이 끊기면 LiDAR 발행이 멈춤)

@@ -1,0 +1,38 @@
+go2_PL_Orig_ws — third-party code and modifications
+===================================================
+
+1. Point-LIO (src/point_lio_orig/)
+   Original work : Point-LIO, HKU-MARS Lab (Dongjiao He, Wei Xu, Nan Chen, Fanze Kong,
+                   Chongjian Yuan, Fu Zhang), https://github.com/hku-mars/Point-LIO
+   ROS2 port     : https://github.com/dfloreaa/point_lio_ros2
+                   commit a8e2d0d5090af97ead8dd4fac3d37cf3dbb33ff7 (2025-08-14)
+   Bundled libs  : IKFoM (include/IKFoM, GPL-2.0), ikd-Tree (include/ikd-Tree), both HKU-MARS
+   License       : GNU General Public License v2.0 — src/point_lio_orig/LICENSE
+                   (the copies of IKFoM keep their own LICENSE file)
+
+   Changes made here (2026-11-12). Every changed file carries a "Modified 2026-11-12" note
+   on its first line:
+     - CMakeLists.txt, package.xml : package renamed point_lio -> point_lio_orig;
+                                     std_msgs added as a dependency
+     - include/IKFoM/IKFoM_toolkit/esekfom/esekfom.hpp : new function update_zupt()
+                                     (zero-velocity / zero-angular-rate measurement update)
+     - src/parameters.h, src/parameters.cpp : new parameters zupt_en (default false),
+                                     zupt_vel_en, zupt_omg_en, zupt_cov_vel, zupt_cov_omg,
+                                     zupt_flag_topic, zupt_timeout
+     - src/laserMapping.cpp        : subscribes to the standstill flag (std_msgs/Bool),
+                                     calls update_zupt() after each point update while the
+                                     flag is true and fresh (zupt_timeout), refuses to start
+                                     when use_imu_as_input=true together with zupt_en=true
+     - config/go2_orig.yaml, launch/go2_orig_live.launch.py : new files for Unitree Go2
+   The image/ folder of the upstream repository (example GIFs, about 250 MB) is not included.
+   Nothing else in the estimator (prediction, IMU update, point-to-plane update, ikd-Tree)
+   was changed.
+
+2. tools/, live/ and documentation
+   Written for this project (Unitree Go2 + L1 LiDAR), MIT License — see LICENSE.
+
+If you use this work in academic research, please cite Point-LIO (see CITATION.cff):
+
+  D. He, W. Xu, N. Chen, F. Kong, C. Yuan, F. Zhang,
+  "Point-LIO: Robust High-Bandwidth Light Detection and Ranging Inertial Odometry,"
+  Advanced Intelligent Systems, 2023, Article 2200459. doi:10.1002/aisy.202200459

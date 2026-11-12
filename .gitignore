@@ -1,0 +1,8 @@
+build/
+install/
+log/
+live/runs/*
+!live/runs/.gitkeep
+__pycache__/
+*.pyc
+src/point_lio_orig/PCD/*.pcd

@@ -1,0 +1,86 @@
+# point_lio_orig — Go2 (Unitree L1 + 몸통 IMU 브리지) 실기용 설정
+# 원본: 효신 go2_fix.yaml (2026-11-12 작업본)에서 레그 융합(leg_*) 항목을 빼고,
+#        입력 토픽을 /hknu 로, path·PCD·ZUPT 기본값을 끔으로 바꿈.
+# 노드 하나(Point-LIO)만 읽는 파일입니다. path_en / pcd_save_en / zupt_en 은 launch 인자로 덮어쓸 수 있습니다.
+/**:
+    ros__parameters:
+        # ── 런치 파일에서 옮김 (2026-09-30, 값 동일) ──
+        # ── LiDAR-IMU 관련 주석 수정(2026-10-07) ──
+        use_imu_as_input: false
+        prop_at_freq_of_imu: true
+        check_satu: true
+        init_map_size: 10
+        point_filter_num: 1
+        space_down_sample: true
+        filter_size_surf: 0.1
+        filter_size_map: 0.1
+        cube_side_length: 1000.0
+        runtime_pos_log_enable: false
+        common:
+            lid_topic: "/utlidar/cloud" 
+            imu_topic: "/hknu/l1_imu_fixed"   # l1_imu_fix.py 출력 (실행 스크립트가 /hknu 로 발행)
+            con_frame: false                # true: 여러 LiDAR 프레임을 하나로 합쳐야 할 경우 
+            con_frame_num: 1                # 결합된 프레임 수
+            cut_frame: false                # true: 하나의 LiDAR 프레임을 여러 개의 서브프레임으로 나누어야 할 때
+            cut_frame_time_interval: 0.1    # 1 / LiDAR 주파수의 적분 분수가 되어야 한다.   
+            time_lag_imu_to_lidar: 0.0      # LiDAR와 IMU 간 시간 오프셋, 다른 알고리즘으로 보정됨(예: LI-Init, Readme에서 확인)
+                                            # IMU의 타임샘플 값은 현재 타임라인에서 LiDAR 타임라인으로 이 값을 빼서 전달됩니다
+
+        preprocess:
+            lidar_type: 5
+            scan_line: 18
+            timestamp_unit: 0           # PointCloud2에서 시간/필드 단위는 0초, 1밀리초, 2마이크로초, 3나노초입니다. 로스토픽.
+            blind: 0.5
+
+        mapping:
+            imu_en: true
+            start_in_aggressive_motion: false # true로 설정하면, 다음 gravity_init에서 미리 정해진 중력을 제공해야 합니다
+            extrinsic_est_en: false # 공격적인 동작이 필요하면 이 변수를 false로 설정하세요
+            imu_time_inte: 0.004 # = 1 / IMU의 주파수
+            satu_acc: 30.0 # the saturation value of IMU's acceleration. not related to the units
+            satu_gyro: 35.0 # the saturation value of IMU's angular velocity. not related to the units
+            acc_norm: 9.80665 # 1.0 for g as unit, 9.81 for m/s^2 as unit of the IMU's acceleration
+            lidar_meas_cov: 0.01 # 0.001
+            acc_cov_output: 500.0
+            gyr_cov_output: 1000.0
+            b_acc_cov: 0.0001 
+            b_gyr_cov: 0.0001 
+            imu_meas_acc_cov: 0.1 #0.1 # 2
+            imu_meas_omg_cov: 0.1 #0.1 # 2 
+            gyr_cov_input: 0.01 # for IMU as input model
+            acc_cov_input: 0.1 # for IMU as input model
+            plane_thr: 0.1 # 0.05, the threshold for plane criteria, the smaller, the flatter a plane
+            match_s: 81.0
+            fov_degree: 180.0
+            det_range: 100.0
+            gravity_align: true # true to align the z axis of world frame with the direction of gravity, and the gravity direction should be specified below
+            gravity: [0.0, 0.0, -9.80665] # [0.0, 9.80665, 0.0] # gravity to be aligned
+            gravity_init: [0.0, 0.0, -9.810] # [0.0, 9.810, 0.0] # # preknown gravity in the first IMU body frame, use when imu_en is false or start from a non-stationary state
+            
+            # transform from imu to lidar
+            extrinsic_T: [ 0.007698, 0.014655, -0.00667] # ulhk # [-0.5, 1.4, 1.5] # utbm
+            extrinsic_R: [ 1.0, 0.0, 0.0,
+                          0.0, 1.0, 0.0,
+                          0.0, 0.0, 1.0 ] # ulhk 4 utbm 3
+
+        odometry: 
+            publish_odometry_without_downsample: false  
+
+        publish:
+            path_en: false                # false: close the path output
+            scan_publish_en: true         # false: close all the point cloud output
+            scan_bodyframe_pub_en: false  # true: output the point cloud scans in IMU-body-frame
+
+        pcd_save:
+            pcd_save_en: false      # save map to pcd file
+            interval: -1            # how many LiDAR frames saved in each pcd file; 
+                                        # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.
+        
+        # ZUPT - Zero Velocity Update
+        zupt_en: false        # 기본 끔. 실행 시 --zupt 또는 launch 인자 zupt_en:=true 로 켬
+        zupt_vel_en: true
+        zupt_omg_en: true
+        zupt_cov_vel: 0.01
+        zupt_cov_omg: 0.0001
+        zupt_flag_topic: "/hknu/zupt_active"
+        zupt_timeout: 1.0   # [s] /zupt_active 를 이보다 오래 못 받으면 false 로 봄
