@@ -2,7 +2,7 @@ This repository contains code under two licenses:
 
   * src/point_lio_orig/   GNU General Public License v2.0 (see src/point_lio_orig/LICENSE).
                           Derived from Point-LIO (HKU-MARS) via the ROS2 port dfloreaa/point_lio_ros2.
-  * everything else       MIT License (below): tools/, live/, documentation.
+  * everything else       MIT License (below): src/go2_lidar_odom/, tools/, live/, documentation.
 
 -------------------------------------------------------------------------------
 

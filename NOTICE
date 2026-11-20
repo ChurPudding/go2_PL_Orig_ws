@@ -28,8 +28,10 @@ go2_PL_Orig_ws — third-party code and modifications
    Nothing else in the estimator (prediction, IMU update, point-to-plane update, ikd-Tree)
    was changed.
 
-2. tools/, live/ and documentation
+2. src/go2_lidar_odom/, tools/, live/ and documentation
    Written for this project (Unitree Go2 + L1 LiDAR), MIT License — see LICENSE.
+   src/go2_lidar_odom/ (added 2026-11-20) is a LiDAR-only point-to-plane ICP odometry node.
+   It contains no third-party code.
 
 If you use this work in academic research, please cite Point-LIO (see CITATION.cff):
 
